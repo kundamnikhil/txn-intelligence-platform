@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("Transaction Intelligence Platform")
-st.subheader("AmEx-style financial transaction monitoring and fraud risk scoring")
+st.subheader("Financial transaction monitoring, fraud risk scoring, and pipeline observability")
 
 st.markdown("""
 ### What this platform does
