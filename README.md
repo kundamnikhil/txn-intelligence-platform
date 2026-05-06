@@ -44,9 +44,9 @@ Fraud Analytics     Spend Trends     Pipeline Timeline
                                        (Gantt chart)
 ```
 
----
-Full Data Flow
 
+Full Data Flow
+```
 Synthetic data generator (Faker + lognormal distribution)
         |
         v
@@ -75,7 +75,7 @@ Streamlit Dashboard (Streamlit Cloud, public URL)
   Page 3: Pipeline Timeline        (Gantt from pipeline_metrics)
   Page 4: ML Predictions           (rule vs ML scatter, SHAP importance, delta table)
 
----
+```
 
 
 ## Stack
