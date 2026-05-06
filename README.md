@@ -1,6 +1,8 @@
 # Transaction Intelligence Platform
 
-A production-grade financial transaction monitoring pipeline built on GCP. Ingests 50,000+ synthetic credit card transactions, runs data quality gates, scores fraud risk using behavioral anomaly detection, and surfaces analytics through a live Streamlit dashboard with full pipeline observability.
+A production-grade financial transaction monitoring pipeline built on GCP.
+
+**Live demo:** https://kundamnikhil-txn-intelligence-platform-dashboardapp-unxbvj.streamlit.app Ingests 50,000+ synthetic credit card transactions, runs data quality gates, scores fraud risk using behavioral anomaly detection, and surfaces analytics through a live Streamlit dashboard with full pipeline observability.
 
 Built to mirror the data engineering patterns used in large-scale financial institutions medallion warehouse architecture, orchestrated batch pipeline, per-entity fraud scoring, and pipeline health tracked as first-class data.
 
