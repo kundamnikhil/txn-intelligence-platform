@@ -1,10 +1,20 @@
 import os
+import streamlit as st
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "txn-intelligence-platform")
 DATASET = os.environ.get("BQ_DATASET", "txn_intelligence")
 
 def get_client():
+    # Streamlit Cloud -- use service account from secrets
+    if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        return bigquery.Client(project=PROJECT_ID, credentials=credentials)
+    # Local -- use ADC
     return bigquery.Client(project=PROJECT_ID)
 
 def run_query(sql):
