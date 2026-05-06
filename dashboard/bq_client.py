@@ -1,19 +1,22 @@
 import os
-import streamlit as st
 from google.cloud import bigquery
-from google.oauth2 import service_account
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "txn-intelligence-platform")
 DATASET = os.environ.get("BQ_DATASET", "txn_intelligence")
 
 def get_client():
     # Streamlit Cloud -- use service account from secrets
-    if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-        credentials = service_account.Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"],
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
-        )
-        return bigquery.Client(project=PROJECT_ID, credentials=credentials)
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            from google.oauth2 import service_account
+            credentials = service_account.Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            return bigquery.Client(project=PROJECT_ID, credentials=credentials)
+    except Exception:
+        pass
     # Local -- use ADC
     return bigquery.Client(project=PROJECT_ID)
 
@@ -84,4 +87,22 @@ def pipeline_metrics():
             status
         FROM `{PROJECT_ID}.{DATASET}.pipeline_metrics`
         ORDER BY started_at DESC
+    """)
+
+def ml_predictions():
+    return run_query(f"""
+        SELECT
+            transaction_id,
+            card_id,
+            amount,
+            composite_fraud_score,
+            ml_fraud_probability,
+            ml_predicted_fraud,
+            rule_predicted_fraud,
+            model_caught_rules_missed,
+            rules_caught_model_missed,
+            predicted_at
+        FROM `{PROJECT_ID}.{DATASET}.ml_fraud_predictions`
+        ORDER BY ml_fraud_probability DESC
+        LIMIT 5000
     """)
