@@ -309,7 +309,7 @@ The pipeline architecture is cloud-agnostic by design. Scaling to production Fin
 - `fraud_score.py` rule engine replaced by a served ML model on Vertex AI with the same input contract
 - Airflow on Docker replaced by Cloud Composer with auto-scaling workers
 
-The DAG structure, medallion table design, explicit schemas, and pipeline metrics pattern carry over unchanged. That's the point -- the architecture decisions made here are the same ones you make at scale, just with different execution engines.
+The DAG structure, medallion table design, explicit schemas, and pipeline metrics pattern carry over unchanged. That's the point the architecture decisions made here are the same ones you make at scale, just with different execution engines.
 
 ---
 
