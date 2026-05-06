@@ -45,6 +45,38 @@ Fraud Analytics     Spend Trends     Pipeline Timeline
 ```
 
 ---
+Full Data Flow
+
+Synthetic data generator (Faker + lognormal distribution)
+        |
+        v
+GCS raw bucket  [gs://txn-intelligence-raw/raw/transactions_YYYY_MM_DD.csv]
+        |
+        v  (Airflow scheduler triggers at midnight)
++-----------+    +-----------+    +-------------+    +----------+    +----------+
+| ingest_raw| >> |validate   | >> |transform    | >> |bq_load   | >> |ml_score  |
+| GCS->tmp  |    |6 checks   |    |fraud scorer |    |3 tables  |    |(manual)  |
++-----------+    +-----------+    +-------------+    +----------+    +----------+
+                       |                                   |               |
+                  raises on fail                    pipeline_metrics   ml_fraud_predictions
+                  Slack alert fires                 (observability)    (ML layer)
+        |
+        v
+BigQuery Medallion Warehouse
+  Bronze: raw_transactions         (partitioned DATE(timestamp), clustered card_id)
+  Gold:   fraud_risk_scores        (partitioned DATE(scored_at), clustered card_id)
+  Obs:    pipeline_metrics         (partitioned DATE(started_at))
+  ML:     ml_fraud_predictions     (partitioned DATE(predicted_at), clustered card_id)
+        |
+        v
+Streamlit Dashboard (Streamlit Cloud, public URL)
+  Page 1: Fraud Analytics          (fraud rate by MCC, scatter, top-50 table)
+  Page 2: Spend Trends             (time series, anomaly highlight)
+  Page 3: Pipeline Timeline        (Gantt from pipeline_metrics)
+  Page 4: ML Predictions           (rule vs ML scatter, SHAP importance, delta table)
+
+---
+
 
 ## Stack
 
