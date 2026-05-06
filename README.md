@@ -318,3 +318,31 @@ The DAG structure, medallion table design, explicit schemas, and pipeline metric
 ## To Summarize we:
 
 Built an end-to-end financial transaction monitoring pipeline processing 50K+ synthetic credit card events through a Bronze/Silver/Gold medallion architecture, orchestrated via Airflow DAGs with data quality gates, velocity-based fraud scoring, and failure alerting hooks, surfaced through a Streamlit observability dashboard tracking pipeline health, spend anomalies, and fraud risk scores across merchant categories.
+
+## ML Fraud Risk Model
+
+A GradientBoostingClassifier trained on 450k transactions that predicts fraud probability alongside the existing rule-based scorer. The model adds a second opinion on top of the rules, catching non-obvious feature interactions the velocity and zscore rules miss.
+
+**Model performance:**
+- AUC-ROC: 0.7487
+- Training data: 450k transactions, 1.96% fraud rate
+- Features: amount, amount_zscore, velocity_score, international flags, composite_fraud_score
+
+**Why gradient boosting over logistic regression:**
+Amount and amount_zscore together explain 97% of feature importance. Gradient boosting handles this kind of feature dominance better than linear models without requiring manual interaction terms.
+
+**Incremental value:**
+1,080 transactions the model flagged that the rule system let through. Rules catch obvious patterns (high velocity, large international amounts). The model catches moderate signals that combine to be suspicious without individually crossing any rule threshold.
+
+**How it fits the pipeline:**
+Model trains offline, saves to fraud_model.pkl. score_predictions.py loads the artifact, scores all transactions, writes results to ml_fraud_predictions in BigQuery. Dashboard reads from that table. Model never runs inside Streamlit.
+
+```bash
+# train model
+python3 models/fraud_risk_model.py
+
+# score transactions and write to BigQuery
+python3 models/score_predictions.py
+```
+
+**Dashboard page 4** shows rule vs ML comparison scatter, feature importance bar chart, and the incremental catch table.
