@@ -65,3 +65,7 @@ category_summary = df.groupby("mcc_category").agg(
     avg_daily_spend=("total_spend", "mean")
 ).round(2).sort_values("total_spend", ascending=False).reset_index()
 st.dataframe(category_summary, use_container_width=True)
+
+if st.button("Refresh data"):
+    st.cache_data.clear()
+    st.rerun()

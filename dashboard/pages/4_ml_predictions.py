@@ -112,3 +112,7 @@ fig3 = px.histogram(
 fig3.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="Decision threshold")
 fig3.update_layout(height=300)
 st.plotly_chart(fig3, use_container_width=True)
+
+if st.button("Refresh data"):
+    st.cache_data.clear()
+    st.rerun()

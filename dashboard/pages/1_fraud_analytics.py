@@ -60,3 +60,7 @@ st.dataframe(
     use_container_width=True,
     height=400
 )
+
+if st.button("Refresh data"):
+    st.cache_data.clear()
+    st.rerun()

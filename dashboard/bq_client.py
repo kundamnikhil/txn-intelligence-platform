@@ -22,7 +22,7 @@ def run_query(sql):
     client = get_client()
     return client.query(sql).to_dataframe()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def fraud_summary():
     return run_query(f"""
         SELECT
@@ -38,7 +38,7 @@ def fraud_summary():
         ORDER BY avg_fraud_score DESC
     """)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def spend_trends():
     return run_query(f"""
         SELECT
@@ -51,7 +51,7 @@ def spend_trends():
         ORDER BY date DESC
     """)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def top_high_risk_transactions():
     return run_query(f"""
         SELECT
@@ -74,7 +74,7 @@ def top_high_risk_transactions():
         LIMIT 50
     """)
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def pipeline_metrics():
     return run_query(f"""
         SELECT
@@ -91,7 +91,7 @@ def pipeline_metrics():
         ORDER BY started_at DESC
     """)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def ml_predictions():
     return run_query(f"""
         SELECT

@@ -26,13 +26,14 @@ MCC_CODES = {
 
 COUNTRIES = ["US"] * 85 + ["UK", "CA", "MX", "IN", "DE", "FR", "AU", "JP", "BR"]
 
-def generate_transactions(n=50000):
-    logger.info(f"Generating {n} synthetic transactions")
+def generate_transactions(n=50000, for_date=None):
+    target_date = for_date or datetime.utcnow().date()
+    logger.info(f"Generating {n} transactions for {target_date}")
+
     records = []
     card_ids = [str(uuid.uuid4())[:8] for _ in range(500)]
     merchant_ids = [str(uuid.uuid4())[:8] for _ in range(200)]
     mcc_list = list(MCC_CODES.keys())
-    now = datetime.utcnow()
 
     for _ in range(n):
         card_id = random.choice(card_ids)
@@ -41,9 +42,12 @@ def generate_transactions(n=50000):
         is_international = country != "US"
         amount = round(random.lognormvariate(4.5, 1.2), 2)
         amount = max(1.0, min(amount, 15000.0))
-        days_back = random.randint(0, 89)
-        hours_back = random.randint(0, 23)
-        timestamp = now - timedelta(days=days_back, hours=hours_back)
+        # all transactions timestamped to today with random hour
+        hour = random.randint(0, 23)
+        minute = random.randint(0, 59)
+        timestamp = datetime.combine(target_date, datetime.min.time()).replace(
+            hour=hour, minute=minute
+        )
         is_fraud = random.random() < 0.02
 
         records.append({
@@ -61,7 +65,8 @@ def generate_transactions(n=50000):
         })
 
     df = pd.DataFrame(records)
-    filename = f"transactions_{datetime.utcnow().strftime('%Y_%m_%d')}.csv"
+    date_str = target_date.strftime("%Y_%m_%d")
+    filename = f"transactions_{date_str}.csv"
     output_path = f"/tmp/{filename}"
     df.to_csv(output_path, index=False)
 
@@ -73,5 +78,7 @@ def generate_transactions(n=50000):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate synthetic transaction data")
     parser.add_argument("--rows", type=int, default=50000, help="Number of rows to generate")
+    parser.add_argument("--date", type=str, default=None, help="Target date YYYY-MM-DD (default: today)")
     args = parser.parse_args()
-    generate_transactions(n=args.rows)
+    target = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None
+    generate_transactions(n=args.rows, for_date=target)

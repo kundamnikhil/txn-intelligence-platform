@@ -60,3 +60,7 @@ st.dataframe(
     df[["run_id", "task_name", "started_at", "duration_ms", "records_in", "null_rate", "status"]],
     use_container_width=True
 )
+
+if st.button("Refresh data"):
+    st.cache_data.clear()
+    st.rerun()
