@@ -1,13 +1,12 @@
 import os
+import streamlit as st
 from google.cloud import bigquery
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "txn-intelligence-platform")
 DATASET = os.environ.get("BQ_DATASET", "txn_intelligence")
 
 def get_client():
-    # Streamlit Cloud -- use service account from secrets
     try:
-        import streamlit as st
         if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
             from google.oauth2 import service_account
             credentials = service_account.Credentials.from_service_account_info(
@@ -17,13 +16,13 @@ def get_client():
             return bigquery.Client(project=PROJECT_ID, credentials=credentials)
     except Exception:
         pass
-    # Local -- use ADC
     return bigquery.Client(project=PROJECT_ID)
 
 def run_query(sql):
     client = get_client()
     return client.query(sql).to_dataframe()
 
+@st.cache_data(ttl=3600)
 def fraud_summary():
     return run_query(f"""
         SELECT
@@ -39,6 +38,7 @@ def fraud_summary():
         ORDER BY avg_fraud_score DESC
     """)
 
+@st.cache_data(ttl=3600)
 def spend_trends():
     return run_query(f"""
         SELECT
@@ -51,6 +51,7 @@ def spend_trends():
         ORDER BY date DESC
     """)
 
+@st.cache_data(ttl=3600)
 def top_high_risk_transactions():
     return run_query(f"""
         SELECT
@@ -73,6 +74,7 @@ def top_high_risk_transactions():
         LIMIT 50
     """)
 
+@st.cache_data(ttl=300)
 def pipeline_metrics():
     return run_query(f"""
         SELECT
@@ -89,6 +91,7 @@ def pipeline_metrics():
         ORDER BY started_at DESC
     """)
 
+@st.cache_data(ttl=3600)
 def ml_predictions():
     return run_query(f"""
         SELECT
