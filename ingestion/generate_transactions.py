@@ -1,8 +1,13 @@
 import pandas as pd
 import uuid
 import random
+import argparse
 from faker import Faker
 from datetime import datetime, timedelta
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 fake = Faker()
 
@@ -22,11 +27,11 @@ MCC_CODES = {
 COUNTRIES = ["US"] * 85 + ["UK", "CA", "MX", "IN", "DE", "FR", "AU", "JP", "BR"]
 
 def generate_transactions(n=50000):
+    logger.info(f"Generating {n} synthetic transactions")
     records = []
     card_ids = [str(uuid.uuid4())[:8] for _ in range(500)]
     merchant_ids = [str(uuid.uuid4())[:8] for _ in range(200)]
     mcc_list = list(MCC_CODES.keys())
-
     now = datetime.utcnow()
 
     for _ in range(n):
@@ -57,11 +62,16 @@ def generate_transactions(n=50000):
 
     df = pd.DataFrame(records)
     filename = f"transactions_{datetime.utcnow().strftime('%Y_%m_%d')}.csv"
-    df.to_csv(f"/tmp/{filename}", index=False)
-    print(f"Generated {n} transactions -> /tmp/{filename}")
-    print(f"Fraud rate: {df['is_fraud'].mean()*100:.2f}%")
-    print(f"International rate: {df['is_international'].mean()*100:.2f}%")
+    output_path = f"/tmp/{filename}"
+    df.to_csv(output_path, index=False)
+
+    logger.info(f"Generated {n} transactions -> {output_path}")
+    logger.info(f"Fraud rate: {df['is_fraud'].mean()*100:.2f}%")
+    logger.info(f"International rate: {df['is_international'].mean()*100:.2f}%")
     return filename
 
 if __name__ == "__main__":
-    generate_transactions()
+    parser = argparse.ArgumentParser(description="Generate synthetic transaction data")
+    parser.add_argument("--rows", type=int, default=50000, help="Number of rows to generate")
+    args = parser.parse_args()
+    generate_transactions(n=args.rows)
