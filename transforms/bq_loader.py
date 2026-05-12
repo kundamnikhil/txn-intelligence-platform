@@ -1,38 +1,49 @@
 import os
 import sys
 import pandas as pd
-from google.cloud import bigquery, storage
+from google.cloud import bigquery
 from datetime import datetime
+import logging
 
 sys.path.insert(0, os.path.dirname(__file__))
 from fraud_score import score_transactions
 from validate import validate
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "txn-intelligence-platform")
 DATASET = os.environ.get("BQ_DATASET", "txn_intelligence")
 BUCKET = os.environ.get("GCS_BUCKET_NAME", "txn-intelligence-raw")
 
+def verify_row_count(client, table_id, expected_count, run_id):
+    result = client.query(f"SELECT COUNT(*) as cnt FROM `{table_id}`").result()
+    actual = list(result)[0].cnt
+    if actual < expected_count:
+        raise ValueError(
+            f"Row count mismatch in {table_id}. "
+            f"Expected at least {expected_count}, got {actual}"
+        )
+    logger.info(f"Row count verified: {table_id} has {actual} rows")
+    return actual
+
 def load_to_bigquery(csv_path):
     client = bigquery.Client(project=PROJECT_ID)
-    gcs_client = storage.Client(project=PROJECT_ID)
     started_at = datetime.utcnow()
 
-    # read + validate
     df = pd.read_csv(csv_path, dtype={"mcc_code": str})
     validation = validate(df)
     if not validation["passed"]:
         raise ValueError(f"Validation failed: {validation}")
 
-    # cast types
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["ingested_at"] = pd.Timestamp.utcnow()
     df["is_international"] = df["is_international"].astype(bool)
     df["is_fraud"] = df["is_fraud"].astype(bool)
     df["amount"] = df["amount"].astype(float)
 
-    # load raw_transactions
     raw_table = f"{PROJECT_ID}.{DATASET}.raw_transactions"
-    job_config = bigquery.LoadJobConfig(
+    raw_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_APPEND",
         autodetect=False,
         schema=[
@@ -50,19 +61,13 @@ def load_to_bigquery(csv_path):
             bigquery.SchemaField("ingested_at", "TIMESTAMP"),
         ]
     )
-    job = client.load_table_from_dataframe(df, raw_table, job_config=job_config)
+    job = client.load_table_from_dataframe(df, raw_table, job_config=raw_config)
     job.result()
-    print(f"Loaded {len(df)} rows to {raw_table}")
+    logger.info(f"Loaded {len(df)} rows to {raw_table}")
+    verify_row_count(client, raw_table, len(df), csv_path)
 
-    # score transactions
     scored_df = score_transactions(df)
     scored_df["scored_at"] = pd.Timestamp.utcnow()
-    score_cols = [
-        "transaction_id", "card_id", "velocity_score",
-        "amount_zscore", "amount_anomaly_score",
-        "international_score", "composite_fraud_score",
-        "is_high_risk", "scored_at"
-    ]
     scored_df["velocity_score"] = scored_df["velocity_score"].astype(int)
     scored_df["amount_anomaly_score"] = scored_df["amount_anomaly_score"].astype(int)
     scored_df["international_score"] = scored_df["international_score"].astype(int)
@@ -70,8 +75,14 @@ def load_to_bigquery(csv_path):
     scored_df["amount_zscore"] = scored_df["amount_zscore"].astype(float)
     scored_df["is_high_risk"] = scored_df["is_high_risk"].astype(bool)
 
+    score_cols = [
+        "transaction_id", "card_id", "velocity_score",
+        "amount_zscore", "amount_anomaly_score",
+        "international_score", "composite_fraud_score",
+        "is_high_risk", "scored_at"
+    ]
     fraud_table = f"{PROJECT_ID}.{DATASET}.fraud_risk_scores"
-    fraud_job_config = bigquery.LoadJobConfig(
+    fraud_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_APPEND",
         autodetect=False,
         schema=[
@@ -86,13 +97,12 @@ def load_to_bigquery(csv_path):
             bigquery.SchemaField("scored_at", "TIMESTAMP"),
         ]
     )
-    job2 = client.load_table_from_dataframe(
-        scored_df[score_cols], fraud_table, job_config=fraud_job_config
-    )
-    job2.result()
-    print(f"Loaded {len(scored_df)} rows to {fraud_table}")
+    client.load_table_from_dataframe(
+        scored_df[score_cols], fraud_table, job_config=fraud_config
+    ).result()
+    logger.info(f"Loaded {len(scored_df)} rows to {fraud_table}")
+    verify_row_count(client, fraud_table, len(scored_df), csv_path)
 
-    # log pipeline metrics
     ended_at = datetime.utcnow()
     duration_ms = int((ended_at - started_at).total_seconds() * 1000)
     metrics_df = pd.DataFrame([{
@@ -107,7 +117,7 @@ def load_to_bigquery(csv_path):
         "status": "success"
     }])
     metrics_table = f"{PROJECT_ID}.{DATASET}.pipeline_metrics"
-    metrics_job_config = bigquery.LoadJobConfig(
+    metrics_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_APPEND",
         autodetect=False,
         schema=[
@@ -122,11 +132,10 @@ def load_to_bigquery(csv_path):
             bigquery.SchemaField("status", "STRING"),
         ]
     )
-    job3 = client.load_table_from_dataframe(
-        metrics_df, metrics_table, job_config=metrics_job_config
-    )
-    job3.result()
-    print(f"Pipeline metrics logged. Duration: {duration_ms}ms")
+    client.load_table_from_dataframe(
+        metrics_df, metrics_table, job_config=metrics_config
+    ).result()
+    logger.info(f"Pipeline metrics logged. Duration: {duration_ms}ms")
 
 if __name__ == "__main__":
     date_str = datetime.utcnow().strftime("%Y_%m_%d")
