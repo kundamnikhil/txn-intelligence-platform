@@ -378,3 +378,33 @@ python3 models/score_predictions.py
 ```
 
 **Dashboard page 4** shows rule vs ML comparison scatter, feature importance bar chart, and the incremental catch table.
+
+## Docker and WSL2 troubleshooting
+
+**Airflow UI not reachable at localhost:8080 on Windows:**
+
+WSL2 uses a separate network interface. If the browser cannot reach localhost:8080, run this in Windows PowerShell as Administrator:
+
+```powershell
+netsh interface portproxy add v4tov4 listenport=8080 listenaddress=0.0.0.0 connectport=8080 connectaddress=$(wsl hostname -I | awk '{print $1}')
+```
+
+Then try localhost:8080 again.
+
+**Port conflict on 5432:**
+
+The docker-compose maps Airflow's internal Postgres to 5433 on the host to avoid conflicts with any existing Postgres instance. If you see a port conflict on 5433, change the mapping in docker-compose.yml to any unused port.
+
+**gcloud auth in WSL2:**
+
+WSL2 cannot open a browser directly. Use the no-browser flow:
+
+```bash
+gcloud auth application-default login --no-browser
+```
+
+Then run the generated command in Windows PowerShell, sign in, and paste the output URL back into WSL.
+
+**DAG showing as missing in Airflow scheduler logs:**
+
+The scheduler scans the dags/ directory periodically. If you see "DAG transaction_pipeline is missing and will be deactivated" in logs, it reactivates automatically on the next scan. This happens during file writes or container restarts and does not affect scheduled runs.
